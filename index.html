@@ -88,7 +88,8 @@
   <b>⑤ 목록의 체크박스</b>로 지도에 표시할 대상을 개별/전체 선택할 수 있습니다. 선택 해제된 항목은 지오코딩도 하지 않아 API 호출도 절약됩니다.<br>
   <b>⑥ 그룹별 색상</b>: 첫 번째 시트에는 '그룹' 열만 넣고, 별도로 <b>'group'</b>이라는 이름의 시트를 만들어 그룹명과 색상을 매핑(그룹, 색상 두 열, 그룹당 1행)해두면 그 그룹에 속한 별 아이콘 색이 자동으로 적용됩니다. 색상 값은 빨강/파랑/초록 등 한글 색상명이나 #FF0000 같은 헥스코드 모두 가능합니다. 왼쪽 상단 그룹 콤보박스로 그룹별 목록만 걸러볼 수도 있습니다.<br>
   <b>⑦ 정보창에서 항목 숨기기</b>: <b>'invisible'</b>이라는 이름의 시트에 첫 번째 시트의 열 이름(예: 학번, 전화번호)을 적어두면, 별풍선을 클릭했을 때 뜨는 정보창에서 그 열은 표시되지 않습니다. (검색이나 CSV 결과 내보내기에는 계속 포함됩니다.) 이 기능은 xlsx 파일(여러 시트 지원)에서만 동작하며 CSV 업로드 시에는 적용되지 않습니다.<br>
-  <a class="linklike" id="downloadSample">▶ 샘플 엑셀 서식(xlsx, 3개 시트) 내려받기</a>
+  <a class="linklike" id="downloadSample">▶ 샘플 엑셀 서식(xlsx, 3개 시트) 내려받기</a><br>
+  <b>⑧ 휴대폰 + 구글 드라이브</b>에서 파일을 선택할 때, 드라이브 안의 파일이 <b>진짜 xlsx 파일이 아니라 '구글 시트'로 만들어진 문서</b>라면(초록색 시트 아이콘) 원본 바이너리 파일이 없어서 "선택"이 활성화되지 않을 수 있습니다. 이 경우 구글 시트 앱에서 해당 문서를 열고 <b>파일 &gt; 다운로드 &gt; Microsoft Excel(.xlsx)</b>로 먼저 내려받은 뒤, 그렇게 생성된 실제 xlsx 파일을 선택해 주세요.
 </div>
 
 <div class="panel">
@@ -99,7 +100,7 @@
 </div>
 
 <div class="panel" id="uploadPanel" style="display:none;">
-  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+  <input type="file" id="fileInput">
   <span id="addrColWrap" style="display:none;">주소 열 선택: <select id="addrColSelect"></select></span>
   <button id="plotBtn" disabled>지도에 표시</button>
   <button id="retryBtn" class="secondary" style="display:none;">실패 항목 재시도</button>
@@ -261,6 +262,10 @@
   el('fileInput').addEventListener('change', function(ev){
     var file = ev.target.files[0];
     if (!file) return;
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)){
+      el('plotStatus').textContent = "경고: 파일 확장자가 xlsx/xls/csv가 아닙니다 (" + file.name + "). 그래도 읽기를 시도합니다.";
+      el('plotStatus').className = "status-msg error";
+    }
     var reader = new FileReader();
     reader.onload = function(e){
       try {
