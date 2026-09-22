@@ -25,19 +25,26 @@
   .status-msg.error{color:var(--fail);font-weight:600;}
   .status-msg.ok{color:var(--ok);font-weight:600;}
   #main{display:flex;height:calc(100vh - 118px);min-height:420px;}
-  #sidebar{width:360px;min-width:280px;border-right:1px solid var(--border);background:#fff;display:flex;flex-direction:column;}
+  #sidebar{width:360px;min-width:240px;max-width:720px;flex:0 0 auto;background:#fff;display:flex;flex-direction:column;overflow:hidden;}
+  #resizer{width:6px;flex:0 0 auto;cursor:col-resize;background:var(--border);position:relative;}
+  #resizer:hover, #resizer.dragging{background:var(--accent);}
+  #resizer::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:28px;background:#fff;opacity:.6;border-radius:2px;}
   #sidebar .search-box{padding:10px;border-bottom:1px solid var(--border);}
   #sidebar .search-box input{width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;}
+  .group-box{padding:10px 10px 8px;border-bottom:1px solid var(--border);font-size:12.5px;}
+  .group-box label{display:flex;align-items:center;gap:6px;}
+  .group-box select{flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;}
   .list-controls{padding:6px 10px;font-size:12px;color:#444;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
   .list-controls label{display:flex;align-items:center;gap:5px;cursor:pointer;}
   #summary{padding:8px 10px;font-size:12px;color:#555;border-bottom:1px solid var(--border);display:flex;gap:10px;}
   #summary b{color:#222;}
   #entryList{flex:1;overflow-y:auto;}
-  .entry{padding:9px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:12.5px;line-height:1.5;}
+  .entry{display:flex;align-items:flex-start;gap:7px;padding:9px 12px;border-bottom:1px solid #f0f0f0;font-size:12.5px;line-height:1.5;}
   .entry.deselected{opacity:.45;}
   .entry:hover{background:#f5faf8;}
+  .entry .chkWrap{flex:0 0 auto;padding-top:2px;cursor:pointer;}
+  .entry .entryBody{flex:1;min-width:0;cursor:pointer;}
   .entry .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
-  .entry input.entryChk{margin-right:7px;vertical-align:middle;cursor:pointer;}
   .dot.ok{background:var(--ok);} .dot.fail{background:var(--fail);} .dot.pending{background:var(--pending);}
   .entry .title{font-weight:600;}
   .entry .sub{color:#777;font-size:11.5px;}
@@ -52,6 +59,9 @@
   .iw table{border-collapse:collapse;width:100%;}
   .iw th{text-align:left;color:#777;padding:1px 6px 1px 0;white-space:nowrap;vertical-align:top;font-weight:500;}
   .iw td{padding:1px 0;word-break:break-all;}
+  .tooltip-box{background:rgba(30,30,30,0.92);color:#fff;padding:6px 10px;border-radius:6px;font-size:12px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.3);max-width:240px;white-space:normal;}
+  .tooltip-box b{display:block;margin-bottom:1px;font-size:12.5px;}
+  .tooltip-box .t-addr{color:#ddd;font-size:11px;}
   #failPanel{border-top:1px solid var(--border);max-height:160px;overflow-y:auto;font-size:12px;display:none;}
   #failPanel.open{display:block;}
   #failPanel .fp-head{padding:6px 12px;background:#fff3f3;font-weight:600;color:var(--fail);display:flex;justify-content:space-between;align-items:center;}
@@ -76,7 +86,9 @@
   전화번호·학번처럼 앞자리 0이 있는 값은 엑셀에서 <b>텍스트 서식</b>으로 입력해 주세요.<br>
   <b>④ 같은 주소가 여러 행이면</b> 마커 하나에 인원이 모두 묶여서 표시되고, 별 아이콘에 인원 수 배지가 붙습니다.<br>
   <b>⑤ 목록의 체크박스</b>로 지도에 표시할 대상을 개별/전체 선택할 수 있습니다. 선택 해제된 항목은 지오코딩도 하지 않아 API 호출도 절약됩니다.<br>
-  <a class="linklike" id="downloadSample">▶ 샘플 엑셀 서식(CSV) 내려받기</a>
+  <b>⑥ 그룹별 색상</b>: 첫 번째 시트에는 '그룹' 열만 넣고, 별도로 <b>'group'</b>이라는 이름의 시트를 만들어 그룹명과 색상을 매핑(그룹, 색상 두 열, 그룹당 1행)해두면 그 그룹에 속한 별 아이콘 색이 자동으로 적용됩니다. 색상 값은 빨강/파랑/초록 등 한글 색상명이나 #FF0000 같은 헥스코드 모두 가능합니다. 왼쪽 상단 그룹 콤보박스로 그룹별 목록만 걸러볼 수도 있습니다.<br>
+  <b>⑦ 정보창에서 항목 숨기기</b>: <b>'invisible'</b>이라는 이름의 시트에 첫 번째 시트의 열 이름(예: 학번, 전화번호)을 적어두면, 별풍선을 클릭했을 때 뜨는 정보창에서 그 열은 표시되지 않습니다. (검색이나 CSV 결과 내보내기에는 계속 포함됩니다.) 이 기능은 xlsx 파일(여러 시트 지원)에서만 동작하며 CSV 업로드 시에는 적용되지 않습니다.<br>
+  <a class="linklike" id="downloadSample">▶ 샘플 엑셀 서식(xlsx, 3개 시트) 내려받기</a>
 </div>
 
 <div class="panel">
@@ -97,6 +109,9 @@
 
 <div id="main">
   <div id="sidebar">
+    <div class="group-box" id="groupFilterWrap" style="display:none;">
+      <label>그룹: <select id="groupSelect"><option value="__ALL__">전체 그룹</option></select></label>
+    </div>
     <div class="search-box"><input type="text" id="searchInput" placeholder="이름·회사·전공 등으로 검색"></div>
     <div class="list-controls" id="listControls" style="display:none;">
       <label><input type="checkbox" id="selectAllChk" checked> 전체 선택</label>
@@ -109,6 +124,7 @@
       <div id="failItems"></div>
     </div>
   </div>
+  <div id="resizer" title="드래그해서 목록 폭 조절"></div>
   <div id="map"></div>
 </div>
 
@@ -122,8 +138,15 @@
   var rows = [];            // [{values:{header:val}, status:'pending'|'ok'|'fail', lat,lng, failReason, groupKey}]
   var addrColKey = null;
   var nameColKey = null;
+  var groupColKey = null;
+  var currentGroupFilter = '__ALL__';
+  var groupColorMap = {};   // 'group' 시트: 그룹명 -> 색상
+  var hiddenColumns = {};   // 'invisible' 시트: 정보창에서 숨길 열 이름
   var groups = {};          // coordKey -> {lat,lng,marker,rowIndexes:[]}
   var infowindow = null;
+  var hoverWindow = null;   // 마우스 오버 시 잠깐 보여주는 미리보기 툴팁
+  var pinnedKey = null;     // 클릭으로 고정 표시 중인 정보창의 그룹 key
+  var DEFAULT_CLIENT_ID = 'dnjcydsphi';
 
   var el = function(id){ return document.getElementById(id); };
   var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
@@ -139,23 +162,34 @@
   });
 
   el('downloadSample').addEventListener('click', function(){
-    var csv = "﻿" + [
-      "주소,이름,학번,전공,전화번호,회사명",
-      "경기도 수원시 영통구 월드컵로 206,홍길동,2021123456,미래자동차공학과,010-1234-5678,아주모터스",
-      "서울특별시 강남구 테헤란로 152,김철수,2022998877,미래자동차공학과,010-2222-3333,현대오토에버"
-    ].join("\r\n");
-    var blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = "샘플_명단.csv";
-    a.click();
+    var mainData = [
+      ["주소","이름","학번","전공","전화번호","회사명","그룹"],
+      ["경기도 수원시 영통구 월드컵로 206","홍길동","2021123456","미래자동차공학과","010-1234-5678","아주모터스","1학년"],
+      ["서울특별시 강남구 테헤란로 152","김철수","2022998877","미래자동차공학과","010-2222-3333","현대오토에버","2학년"]
+    ];
+    var groupData = [
+      ["그룹","색상"],
+      ["1학년","빨강"],
+      ["2학년","파랑"]
+    ];
+    var invisibleData = [
+      ["학번"],
+      ["전화번호"]
+    ];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mainData), "명단");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(groupData), "group");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(invisibleData), "invisible");
+    XLSX.writeFile(wb, "샘플_명단.xlsx");
   });
 
-  // load saved client id
+  // 저장된 Client ID가 있으면 사용, 없으면 기본값 사용
   try {
     var saved = localStorage.getItem('naverMapClientId');
-    if (saved) el('clientIdInput').value = saved;
-  } catch(e){}
+    el('clientIdInput').value = saved || DEFAULT_CLIENT_ID;
+  } catch(e){
+    el('clientIdInput').value = DEFAULT_CLIENT_ID;
+  }
 
   // ---------- map init ----------
   function loadNaverMapScript(clientId){
@@ -171,7 +205,7 @@
     });
   }
 
-  el('initMapBtn').addEventListener('click', function(){
+  function initMapFlow(){
     var clientId = el('clientIdInput').value.trim();
     var statusEl = el('mapStatus');
     if (!clientId){
@@ -190,6 +224,14 @@
         zoom: 11
       });
       infowindow = new naver.maps.InfoWindow({ content: '', anchorSkew: true });
+      hoverWindow = new naver.maps.InfoWindow({
+        content: '',
+        disableAnchor: true,
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+        pixelOffset: new naver.maps.Point(0, -6)
+      });
+      naver.maps.Event.addListener(map, 'click', function(){ infowindow.close(); hoverWindow.close(); pinnedKey = null; }); // 빈 영역 클릭 시 정보창 닫기
       statusEl.textContent = "지도 준비 완료. 아래에서 엑셀 파일을 불러오세요.";
       statusEl.className = "status-msg ok";
       el('uploadPanel').style.display = "flex";
@@ -199,11 +241,22 @@
       statusEl.className = "status-msg error";
       el('initMapBtn').disabled = false;
     });
-  });
+  }
+
+  el('initMapBtn').addEventListener('click', initMapFlow);
+  initMapFlow(); // 페이지 로드 시 자동으로 한 번 실행
 
   // ---------- excel loading ----------
   var ADDR_RE = /주소|address|addr|소재지/i;
   var NAME_RE = /이름|성명|^name$/i;
+  var GROUP_RE = /그룹|group/i;
+  var COLOR_RE = /색상|색깔|colou?r/i;
+
+  function findSheetByName(wb, name){
+    var target = name.toLowerCase();
+    var found = wb.SheetNames.find(function(n){ return n.trim().toLowerCase() === target; });
+    return found ? wb.Sheets[found] : null;
+  }
 
   el('fileInput').addEventListener('change', function(ev){
     var file = ev.target.files[0];
@@ -234,6 +287,47 @@
         // detect address column
         addrColKey = headers.find(function(h){ return ADDR_RE.test(h); }) || null;
         nameColKey = headers.find(function(h){ return NAME_RE.test(h); }) || null;
+        groupColKey = headers.find(function(h){ return GROUP_RE.test(h); }) || null;
+
+        // 'group' 시트: 그룹명 -> 색상 매핑표 (그룹, 색상 두 열, 그룹당 1행)
+        groupColorMap = {};
+        var groupSheet = findSheetByName(wb, 'group');
+        if (groupSheet){
+          var gJson = XLSX.utils.sheet_to_json(groupSheet, {header:1, defval:'', raw:false});
+          if (gJson.length > 1){
+            var gHeaders = gJson[0].map(function(h){ return String(h).trim(); });
+            var gNameIdx = gHeaders.findIndex(function(h){ return GROUP_RE.test(h); });
+            var gColorIdx = gHeaders.findIndex(function(h){ return COLOR_RE.test(h); });
+            if (gNameIdx === -1) gNameIdx = 0;
+            if (gColorIdx === -1) gColorIdx = 1;
+            for (var gi=1; gi<gJson.length; gi++){
+              var grow = gJson[gi];
+              if (!grow) continue;
+              var gName = String(grow[gNameIdx] || '').trim();
+              var gColor = String(grow[gColorIdx] || '').trim();
+              if (gName) groupColorMap[gName] = gColor;
+            }
+          }
+        }
+
+        // 'invisible' 시트: 정보창에서 숨길 열 이름 목록 (시트 내 값 전체를 열 이름과 대조)
+        hiddenColumns = {};
+        var invSheet = findSheetByName(wb, 'invisible');
+        if (invSheet){
+          var iJson = XLSX.utils.sheet_to_json(invSheet, {header:1, defval:'', raw:false});
+          var invisNames = {};
+          iJson.forEach(function(irow){
+            (irow || []).forEach(function(cell){
+              var name = String(cell || '').trim();
+              if (name) invisNames[name.toLowerCase()] = true;
+            });
+          });
+          headers.forEach(function(h){
+            if (invisNames[h.toLowerCase()]) hiddenColumns[h] = true;
+          });
+        }
+
+        rebuildGroupFilterOptions();
 
         var sel = el('addrColSelect');
         sel.innerHTML = '';
@@ -267,6 +361,39 @@
     addrColKey = this.value;
   });
 
+  function rebuildGroupFilterOptions(){
+    var wrap = el('groupFilterWrap');
+    var sel = el('groupSelect');
+    if (!groupColKey){
+      wrap.style.display = 'none';
+      currentGroupFilter = '__ALL__';
+      return;
+    }
+    var groupNames = {};
+    rows.forEach(function(r){
+      var g = (r.values[groupColKey] || '').trim();
+      if (g) groupNames[g] = true;
+    });
+    sel.innerHTML = '<option value="__ALL__">전체 그룹</option>';
+    Object.keys(groupNames).sort(function(a,b){ return a.localeCompare(b, 'ko'); }).forEach(function(g){
+      var opt = document.createElement('option');
+      opt.value = g; opt.textContent = g;
+      sel.appendChild(opt);
+    });
+    sel.value = '__ALL__';
+    currentGroupFilter = '__ALL__';
+    wrap.style.display = 'block';
+  }
+
+  el('groupSelect').addEventListener('change', function(){
+    currentGroupFilter = this.value;
+    renderEntryList();
+    if (map && rows.some(function(r){ return r.status === 'ok'; })){
+      rebuildGroups();
+      fitMapToGroups();
+    }
+  });
+
   function updateSelectedCount(){
     var total = rows.length;
     var sel = rows.filter(function(r){ return r.selected; }).length;
@@ -287,6 +414,38 @@
     if (rows.some(function(r){ return r.status === 'ok'; })) rebuildGroups();
   });
 
+  // ---------- 목록 폭 조절(드래그) ----------
+  (function(){
+    var resizer = el('resizer');
+    var sidebar = el('sidebar');
+    var dragging = false;
+    resizer.addEventListener('mousedown', function(e){
+      dragging = true;
+      resizer.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function(e){
+      if (!dragging) return;
+      var mainRect = el('main').getBoundingClientRect();
+      var newWidth = e.clientX - mainRect.left;
+      var minW = 240, maxW = Math.min(720, mainRect.width - 200);
+      if (newWidth < minW) newWidth = minW;
+      if (newWidth > maxW) newWidth = maxW;
+      sidebar.style.width = newWidth + 'px';
+      if (map && typeof map.autoResize === 'function') map.autoResize();
+    });
+    document.addEventListener('mouseup', function(){
+      if (!dragging) return;
+      dragging = false;
+      resizer.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      if (map && typeof map.autoResize === 'function') map.autoResize();
+    });
+  })();
+
   // ---------- geocoding + plotting ----------
   function geocodeOne(addr){
     return new Promise(function(resolve){
@@ -304,15 +463,41 @@
 
   function coordKey(lat, lng){ return lat.toFixed(5) + ',' + lng.toFixed(5); }
 
-  function starIcon(count){
+  var COLOR_NAME_MAP = {
+    '빨강':'#e53935', '빨간색':'#e53935', '레드':'#e53935', 'red':'#e53935',
+    '주황':'#fb8c00', '주황색':'#fb8c00', 'orange':'#fb8c00',
+    '노랑':'#FFC107', '노란색':'#FFC107', '옐로우':'#FFC107', 'yellow':'#FFC107',
+    '초록':'#43a047', '초록색':'#43a047', '녹색':'#43a047', 'green':'#43a047',
+    '파랑':'#1e88e5', '파란색':'#1e88e5', '블루':'#1e88e5', 'blue':'#1e88e5',
+    '남색':'#3949ab', 'navy':'#3949ab',
+    '보라':'#8e24aa', '보라색':'#8e24aa', 'purple':'#8e24aa',
+    '분홍':'#ec407a', '분홍색':'#ec407a', '핑크':'#ec407a', 'pink':'#ec407a',
+    '갈색':'#6d4c41', 'brown':'#6d4c41',
+    '회색':'#757575', '그레이':'#757575', 'gray':'#757575', 'grey':'#757575',
+    '검정':'#333333', '검은색':'#333333', 'black':'#333333',
+    '흰색':'#ffffff', 'white':'#ffffff'
+  };
+  var DEFAULT_STAR_COLOR = '#FFC107';
+  function resolveColor(v){
+    if (!v) return DEFAULT_STAR_COLOR;
+    v = String(v).trim();
+    if (!v) return DEFAULT_STAR_COLOR;
+    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v;
+    if (COLOR_NAME_MAP[v]) return COLOR_NAME_MAP[v];
+    if (COLOR_NAME_MAP[v.toLowerCase()]) return COLOR_NAME_MAP[v.toLowerCase()];
+    return v; // CSS 색상 이름(tomato, skyblue 등)으로 간주하고 그대로 사용
+  }
+
+  function starIcon(count, fillColor){
+    fillColor = fillColor || DEFAULT_STAR_COLOR;
     var badge = count > 1 ? (
       '<circle cx="26" cy="9" r="8" fill="#d32f2f" stroke="#fff" stroke-width="1.5"/>' +
       '<text x="26" y="12.5" font-size="10" font-weight="bold" fill="#fff" text-anchor="middle" font-family="sans-serif">' + (count>99?'99+':count) + '</text>'
     ) : '';
     return (
       '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">' +
-        '<path d="M18 1C9.16 1 2 8.16 2 17c0 12 16 27 16 27s16-15 16-27C34 8.16 26.84 1 18 1z" fill="#FFC107" stroke="#B8860B" stroke-width="1.6"/>' +
-        '<polygon points="18,9 20.6,15.4 27.5,15.8 22.1,20.1 23.9,26.8 18,22.9 12.1,26.8 13.9,20.1 8.5,15.8 15.4,15.4" fill="#fff" stroke="#B8860B" stroke-width="0.4"/>' +
+        '<path d="M18 1C9.16 1 2 8.16 2 17c0 12 16 27 16 27s16-15 16-27C34 8.16 26.84 1 18 1z" fill="' + escapeHtml(fillColor) + '" stroke="rgba(0,0,0,0.45)" stroke-width="1.6"/>' +
+        '<polygon points="18,9 20.6,15.4 27.5,15.8 22.1,20.1 23.9,26.8 18,22.9 12.1,26.8 13.9,20.1 8.5,15.8 15.4,15.4" fill="#fff" stroke="rgba(0,0,0,0.25)" stroke-width="0.4"/>' +
         badge +
       '</svg>'
     );
@@ -325,21 +510,38 @@
     groups = {};
   }
 
+  function fitMapToGroups(){
+    var bounds = null;
+    Object.keys(groups).forEach(function(key){
+      var g = groups[key];
+      if (!bounds) bounds = new naver.maps.LatLngBounds(new naver.maps.LatLng(g.lat, g.lng), new naver.maps.LatLng(g.lat, g.lng));
+      else bounds.extend(new naver.maps.LatLng(g.lat, g.lng));
+    });
+    if (bounds) map.fitBounds(bounds);
+  }
+
   function rebuildGroups(){
     clearMarkers();
     rows.forEach(function(row, idx){
       if (row.status !== 'ok' || !row.selected) return;
+      if (currentGroupFilter !== '__ALL__' && groupColKey){
+        var gFilterVal = (row.values[groupColKey] || '').trim();
+        if (gFilterVal !== currentGroupFilter) return;
+      }
       var key = coordKey(row.lat, row.lng);
       if (!groups[key]) groups[key] = { lat: row.lat, lng: row.lng, rowIndexes: [], marker: null };
       groups[key].rowIndexes.push(idx);
     });
     Object.keys(groups).forEach(function(key){
       var g = groups[key];
+      var firstRow = rows[g.rowIndexes[0]];
+      var groupVal = groupColKey ? (firstRow.values[groupColKey] || '').trim() : '';
+      var fillColor = (groupVal && groupColorMap[groupVal]) ? resolveColor(groupColorMap[groupVal]) : DEFAULT_STAR_COLOR;
       var marker = new naver.maps.Marker({
         position: new naver.maps.LatLng(g.lat, g.lng),
         map: map,
         icon: {
-          content: starIcon(g.rowIndexes.length),
+          content: starIcon(g.rowIndexes.length, fillColor),
           size: new naver.maps.Size(36, 46),
           anchor: new naver.maps.Point(18, 46)
         }
@@ -348,12 +550,35 @@
       naver.maps.Event.addListener(marker, 'click', (function(k){
         return function(){ openGroupInfo(k, null); };
       })(key));
+      naver.maps.Event.addListener(marker, 'mouseover', (function(k){
+        return function(){ showHoverTooltip(k); };
+      })(key));
+      naver.maps.Event.addListener(marker, 'mouseout', function(){
+        hoverWindow.close();
+      });
     });
+  }
+
+  function showHoverTooltip(key){
+    if (!hoverWindow || key === pinnedKey) return; // 이미 클릭으로 고정된 마커면 중복 표시 안 함
+    var g = groups[key];
+    if (!g || !g.marker) return;
+    var names = g.rowIndexes.map(function(idx){
+      var row = rows[idx];
+      return nameColKey ? (row.values[nameColKey] || '이름없음') : ('항목 ' + (idx+1));
+    });
+    var label = names.slice(0, 3).join(', ') + (names.length > 3 ? ' 외 ' + (names.length - 3) + '명' : '');
+    var addrText = rows[g.rowIndexes[0]].values[addrColKey] || '';
+    var html = '<div class="tooltip-box"><b>' + escapeHtml(label) + '</b><span class="t-addr">' + escapeHtml(addrText) + '</span></div>';
+    hoverWindow.setContent(html);
+    hoverWindow.open(map, g.marker);
   }
 
   function openGroupInfo(key, highlightIdx){
     var g = groups[key];
     if (!g || !g.marker) return;
+    pinnedKey = key;
+    if (hoverWindow) hoverWindow.close();
     var html = '<div class="iw"><h4>' + g.rowIndexes.length + '명 / 건</h4>';
     g.rowIndexes.forEach(function(idx){
       var row = rows[idx];
@@ -361,6 +586,7 @@
       html += '<div class="person"' + (idx===highlightIdx ? ' style="background:#fff8e1;"' : '') + '>';
       html += '<table>';
       headers.forEach(function(h){
+        if (hiddenColumns[h]) return;
         var val = row.values[h];
         if (val === '' || val == null) return;
         html += '<tr><th>' + escapeHtml(h) + '</th><td>' + escapeHtml(val) + '</td></tr>';
@@ -449,6 +675,10 @@
     listEl.innerHTML = '';
     var shown = 0;
     rows.forEach(function(row, idx){
+      if (currentGroupFilter !== '__ALL__' && groupColKey){
+        var gVal = (row.values[groupColKey] || '').trim();
+        if (gVal !== currentGroupFilter) return;
+      }
       var haystack = Object.values(row.values).join(' ').toLowerCase();
       if (q && haystack.indexOf(q) === -1) return;
       shown++;
@@ -456,16 +686,27 @@
       var sub = row.values[addrColKey] || '';
       var div = document.createElement('div');
       div.className = 'entry' + (row.selected ? '' : ' deselected');
-      div.innerHTML = '<input type="checkbox" class="entryChk" ' + (row.selected ? 'checked' : '') + '><span class="dot ' + row.status + '"></span><span class="title">' + escapeHtml(title) + '</span><br><span class="sub">' + escapeHtml(sub) + (row.status==='fail' ? ' — ' + escapeHtml(row.failReason) : '') + '</span>';
-      var chk = div.querySelector('.entryChk');
-      chk.addEventListener('click', function(ev){ ev.stopPropagation(); });
+
+      // 체크박스는 항상 독립적으로 동작 (전체 선택 상태와 무관하게 개별 클릭 가능)
+      var label = document.createElement('label');
+      label.className = 'chkWrap';
+      var chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.className = 'entryChk';
+      chk.checked = !!row.selected;
       chk.addEventListener('change', function(){
         row.selected = chk.checked;
         div.classList.toggle('deselected', !row.selected);
         updateSelectedCount();
         if (row.status === 'ok') rebuildGroups();
       });
-      div.addEventListener('click', function(){
+      label.appendChild(chk);
+
+      // 이름/주소 영역 클릭 시에는 지도 미리보기(정보창 열기) 동작만 수행
+      var body = document.createElement('div');
+      body.className = 'entryBody';
+      body.innerHTML = '<span class="dot ' + row.status + '"></span><span class="title">' + escapeHtml(title) + '</span><br><span class="sub">' + escapeHtml(sub) + (row.status==='fail' ? ' — ' + escapeHtml(row.failReason) : '') + '</span>';
+      body.addEventListener('click', function(){
         if (row.status !== 'ok'){
           el('plotStatus').textContent = "아직 지도에 표시되지 않은 항목입니다. '지도에 표시' 버튼을 먼저 눌러주세요.";
           el('plotStatus').className = "status-msg error";
@@ -479,6 +720,9 @@
         var key = coordKey(row.lat, row.lng);
         openGroupInfo(key, idx);
       });
+
+      div.appendChild(label);
+      div.appendChild(body);
       listEl.appendChild(div);
     });
     var summaryEl = el('summary');
