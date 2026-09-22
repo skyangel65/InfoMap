@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주소 기반 정보 지도 표시 (네이버 지도)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --star:#FFC107; --star-dark:#B8860B; --ok:#2e7d32; --fail:#c62828; --pending:#9e9e9e;
+    --border:#e0e0e0; --bg:#fafafa; --accent:#03906f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:var(--bg);color:#222;}
+  header{background:#0b3d2e;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  header h1{font-size:16px;margin:0;font-weight:600;}
+  .panel{background:#fff;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;}
+  .panel input[type=text], .panel select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;}
+  .panel input[type=text]{width:280px;}
+  button{background:var(--accent);color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;}
+  button:hover{filter:brightness(1.08);}
+  button:disabled{background:#bbb;cursor:not-allowed;}
+  button.secondary{background:#555;}
+  .status-msg{font-size:12px;color:#555;}
+  .status-msg.error{color:var(--fail);font-weight:600;}
+  .status-msg.ok{color:var(--ok);font-weight:600;}
+  #main{display:flex;height:calc(100vh - 118px);min-height:420px;}
+  #sidebar{width:360px;min-width:280px;border-right:1px solid var(--border);background:#fff;display:flex;flex-direction:column;}
+  #sidebar .search-box{padding:10px;border-bottom:1px solid var(--border);}
+  #sidebar .search-box input{width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;}
+  .list-controls{padding:6px 10px;font-size:12px;color:#444;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .list-controls label{display:flex;align-items:center;gap:5px;cursor:pointer;}
+  #summary{padding:8px 10px;font-size:12px;color:#555;border-bottom:1px solid var(--border);display:flex;gap:10px;}
+  #summary b{color:#222;}
+  #entryList{flex:1;overflow-y:auto;}
+  .entry{padding:9px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:12.5px;line-height:1.5;}
+  .entry.deselected{opacity:.45;}
+  .entry:hover{background:#f5faf8;}
+  .entry .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+  .entry input.entryChk{margin-right:7px;vertical-align:middle;cursor:pointer;}
+  .dot.ok{background:var(--ok);} .dot.fail{background:var(--fail);} .dot.pending{background:var(--pending);}
+  .entry .title{font-weight:600;}
+  .entry .sub{color:#777;font-size:11.5px;}
+  #map{flex:1;}
+  #helpBox{padding:10px 16px;background:#fff8e1;border-bottom:1px solid #f0e2a8;font-size:12.5px;line-height:1.7;display:none;}
+  #helpBox.open{display:block;}
+  #helpBox code{background:#00000010;padding:1px 5px;border-radius:4px;}
+  .iw{font-size:12.5px;max-width:280px;}
+  .iw h4{margin:0 0 6px;font-size:13.5px;border-bottom:1px solid #eee;padding-bottom:4px;}
+  .iw .person{margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed #ddd;}
+  .iw .person:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+  .iw table{border-collapse:collapse;width:100%;}
+  .iw th{text-align:left;color:#777;padding:1px 6px 1px 0;white-space:nowrap;vertical-align:top;font-weight:500;}
+  .iw td{padding:1px 0;word-break:break-all;}
+  #failPanel{border-top:1px solid var(--border);max-height:160px;overflow-y:auto;font-size:12px;display:none;}
+  #failPanel.open{display:block;}
+  #failPanel .fp-head{padding:6px 12px;background:#fff3f3;font-weight:600;color:var(--fail);display:flex;justify-content:space-between;align-items:center;}
+  #failPanel .fp-item{padding:4px 12px;border-bottom:1px solid #f5f5f5;}
+  a.linklike{color:var(--accent);text-decoration:underline;cursor:pointer;font-size:12px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📍 주소 기반 정보 지도 표시</h1>
+  <span style="font-size:12px;opacity:.85;">엑셀 명단 → 주소 지오코딩 → ⭐ 마커로 표시</span>
+  <a class="linklike" id="toggleHelp" style="margin-left:auto;color:#ffe082;">사용법 / 엑셀 형식 안내 ▾</a>
+</header>
+
+<div id="helpBox">
+  <b>① 네이버 클라우드 플랫폼(console.ncloud.com) 가입 → Service &gt; Application Services &gt; Maps &gt; Application 등록.</b>
+  등록 시 <b>Dynamic Map</b>과 <b>Geocoding</b> 두 상품을 모두 활성화하세요. 발급받은 <b>Client ID(Key ID)</b>를 아래 입력창에 넣습니다.<br>
+  <b>② 이 HTML 파일을 실행할 주소(도메인)</b>를 콘솔의 애플리케이션 설정에 "Web 서비스 URL"로 등록해야 합니다. 이 파일을 그냥 더블클릭(file://)하면 대부분 등록이 안 되므로,
+  로컬에서 간단한 웹 서버로 열고(예: VSCode의 Live Server 확장, 또는 <code>python -m http.server</code> 실행 후 <code>http://localhost:포트</code>로 접속) 그 주소를 콘솔에 등록하세요. 사내 웹서버에 올려 쓰셔도 됩니다.<br>
+  <b>③ 엑셀 형식</b>: 첫 번째 행은 머리글(헤더)이며, "주소"라는 이름의 열이 반드시 있어야 합니다(자동 인식되며, 없으면 직접 선택 가능). 나머지 열(이름, 학번, 전공, 전화번호, 회사명 등)은 자유롭게 몇 개든 추가하면 마커 클릭 시 정보창에 그대로 표시됩니다.
+  전화번호·학번처럼 앞자리 0이 있는 값은 엑셀에서 <b>텍스트 서식</b>으로 입력해 주세요.<br>
+  <b>④ 같은 주소가 여러 행이면</b> 마커 하나에 인원이 모두 묶여서 표시되고, 별 아이콘에 인원 수 배지가 붙습니다.<br>
+  <b>⑤ 목록의 체크박스</b>로 지도에 표시할 대상을 개별/전체 선택할 수 있습니다. 선택 해제된 항목은 지오코딩도 하지 않아 API 호출도 절약됩니다.<br>
+  <a class="linklike" id="downloadSample">▶ 샘플 엑셀 서식(CSV) 내려받기</a>
+</div>
+
+<div class="panel">
+  <label>네이버 지도 Client ID (Key ID):</label>
+  <input type="text" id="clientIdInput" placeholder="예: abcdEFGh12...">
+  <button id="initMapBtn">지도 초기화</button>
+  <span class="status-msg" id="mapStatus"></span>
+</div>
+
+<div class="panel" id="uploadPanel" style="display:none;">
+  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+  <span id="addrColWrap" style="display:none;">주소 열 선택: <select id="addrColSelect"></select></span>
+  <button id="plotBtn" disabled>지도에 표시</button>
+  <button id="retryBtn" class="secondary" style="display:none;">실패 항목 재시도</button>
+  <button id="exportBtn" class="secondary" style="display:none;">결과 CSV 저장</button>
+  <span class="status-msg" id="plotStatus"></span>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <div class="search-box"><input type="text" id="searchInput" placeholder="이름·회사·전공 등으로 검색"></div>
+    <div class="list-controls" id="listControls" style="display:none;">
+      <label><input type="checkbox" id="selectAllChk" checked> 전체 선택</label>
+      <span id="selectedCount"></span>
+    </div>
+    <div id="summary" style="display:none;"></div>
+    <div id="entryList"></div>
+    <div id="failPanel">
+      <div class="fp-head"><span id="failCount">실패 0건</span><a class="linklike" id="closeFail" style="color:#c62828;">닫기</a></div>
+      <div id="failItems"></div>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  var map = null;
+  var headers = [];
+  var rows = [];            // [{values:{header:val}, status:'pending'|'ok'|'fail', lat,lng, failReason, groupKey}]
+  var addrColKey = null;
+  var nameColKey = null;
+  var groups = {};          // coordKey -> {lat,lng,marker,rowIndexes:[]}
+  var infowindow = null;
+
+  var el = function(id){ return document.getElementById(id); };
+  var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+  var escapeHtml = function(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  };
+
+  // ---------- help toggle ----------
+  el('toggleHelp').addEventListener('click', function(){
+    el('helpBox').classList.toggle('open');
+  });
+
+  el('downloadSample').addEventListener('click', function(){
+    var csv = "﻿" + [
+      "주소,이름,학번,전공,전화번호,회사명",
+      "경기도 수원시 영통구 월드컵로 206,홍길동,2021123456,미래자동차공학과,010-1234-5678,아주모터스",
+      "서울특별시 강남구 테헤란로 152,김철수,2022998877,미래자동차공학과,010-2222-3333,현대오토에버"
+    ].join("\r\n");
+    var blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = "샘플_명단.csv";
+    a.click();
+  });
+
+  // load saved client id
+  try {
+    var saved = localStorage.getItem('naverMapClientId');
+    if (saved) el('clientIdInput').value = saved;
+  } catch(e){}
+
+  // ---------- map init ----------
+  function loadNaverMapScript(clientId){
+    return new Promise(function(resolve, reject){
+      var s = document.createElement('script');
+      s.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(clientId) + "&submodules=geocoder";
+      s.onload = function(){
+        if (window.naver && window.naver.maps && window.naver.maps.Service) resolve();
+        else reject(new Error("스크립트는 로드되었지만 geocoder 모듈을 찾을 수 없습니다."));
+      };
+      s.onerror = function(){ reject(new Error("스크립트 로드 실패")); };
+      document.head.appendChild(s);
+    });
+  }
+
+  el('initMapBtn').addEventListener('click', function(){
+    var clientId = el('clientIdInput').value.trim();
+    var statusEl = el('mapStatus');
+    if (!clientId){
+      statusEl.textContent = "Client ID를 입력해 주세요.";
+      statusEl.className = "status-msg error";
+      return;
+    }
+    try { localStorage.setItem('naverMapClientId', clientId); } catch(e){}
+    el('initMapBtn').disabled = true;
+    statusEl.textContent = "지도 스크립트 로딩 중...";
+    statusEl.className = "status-msg";
+
+    loadNaverMapScript(clientId).then(function(){
+      map = new naver.maps.Map('map', {
+        center: new naver.maps.LatLng(37.2966, 127.0442), // 아주대/수원 인근 기본 위치
+        zoom: 11
+      });
+      infowindow = new naver.maps.InfoWindow({ content: '', anchorSkew: true });
+      statusEl.textContent = "지도 준비 완료. 아래에서 엑셀 파일을 불러오세요.";
+      statusEl.className = "status-msg ok";
+      el('uploadPanel').style.display = "flex";
+      el('initMapBtn').disabled = true;
+    }).catch(function(err){
+      statusEl.textContent = "지도 로드 실패: " + err.message + " (Client ID, 활성화된 상품(Dynamic Map/Geocoding), 등록된 웹 서비스 URL을 확인하세요)";
+      statusEl.className = "status-msg error";
+      el('initMapBtn').disabled = false;
+    });
+  });
+
+  // ---------- excel loading ----------
+  var ADDR_RE = /주소|address|addr|소재지/i;
+  var NAME_RE = /이름|성명|^name$/i;
+
+  el('fileInput').addEventListener('change', function(ev){
+    var file = ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:'array'});
+        var sheet = wb.Sheets[wb.SheetNames[0]];
+        var json = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', raw:false});
+        if (!json.length){ throw new Error("빈 파일입니다."); }
+        headers = json[0].map(function(h){ return String(h).trim(); }).filter(function(h){ return h !== ''; });
+        var rawHeaders = json[0].map(function(h){ return String(h).trim(); });
+
+        rows = [];
+        for (var i=1;i<json.length;i++){
+          var r = json[i];
+          if (!r || r.every(function(c){ return String(c).trim() === ''; })) continue;
+          var values = {};
+          rawHeaders.forEach(function(h, idx){
+            if (h === '') return;
+            values[h] = r[idx] !== undefined ? String(r[idx]).trim() : '';
+          });
+          rows.push({ values: values, status:'pending', lat:null, lng:null, failReason:'', selected:true });
+        }
+
+        // detect address column
+        addrColKey = headers.find(function(h){ return ADDR_RE.test(h); }) || null;
+        nameColKey = headers.find(function(h){ return NAME_RE.test(h); }) || null;
+
+        var sel = el('addrColSelect');
+        sel.innerHTML = '';
+        headers.forEach(function(h){
+          var opt = document.createElement('option');
+          opt.value = h; opt.textContent = h;
+          if (h === addrColKey) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        el('addrColWrap').style.display = 'inline';
+        if (!addrColKey) addrColKey = headers[0];
+        sel.value = addrColKey;
+
+        el('plotBtn').disabled = rows.length === 0;
+        el('plotStatus').textContent = rows.length + "건 불러옴 (주소 열: " + addrColKey + ")";
+        el('plotStatus').className = "status-msg";
+        el('listControls').style.display = rows.length ? 'flex' : 'none';
+        var selAllChk = el('selectAllChk');
+        selAllChk.checked = true; selAllChk.indeterminate = false;
+        renderEntryList();
+        updateSelectedCount();
+      } catch(err){
+        el('plotStatus').textContent = "엑셀 읽기 오류: " + err.message;
+        el('plotStatus').className = "status-msg error";
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  el('addrColSelect').addEventListener('change', function(){
+    addrColKey = this.value;
+  });
+
+  function updateSelectedCount(){
+    var total = rows.length;
+    var sel = rows.filter(function(r){ return r.selected; }).length;
+    el('selectedCount').textContent = "선택 " + sel + " / " + total;
+    var allChk = el('selectAllChk');
+    if (allChk){
+      allChk.checked = total > 0 && sel === total;
+      allChk.indeterminate = sel > 0 && sel < total;
+    }
+  }
+
+  el('selectAllChk').addEventListener('change', function(){
+    var checked = this.checked;
+    rows.forEach(function(r){ r.selected = checked; });
+    this.indeterminate = false;
+    renderEntryList();
+    updateSelectedCount();
+    if (rows.some(function(r){ return r.status === 'ok'; })) rebuildGroups();
+  });
+
+  // ---------- geocoding + plotting ----------
+  function geocodeOne(addr){
+    return new Promise(function(resolve){
+      naver.maps.Service.geocode({ query: addr }, function(status, response){
+        if (status !== naver.maps.Service.Status.OK){ resolve(null); return; }
+        var v2 = response.v2;
+        if (!v2 || v2.meta.totalCount === 0 || !v2.addresses.length){ resolve(null); return; }
+        var item = v2.addresses[0];
+        var lat = parseFloat(item.y), lng = parseFloat(item.x);
+        if (isNaN(lat) || isNaN(lng)){ resolve(null); return; }
+        resolve({ lat: lat, lng: lng });
+      });
+    });
+  }
+
+  function coordKey(lat, lng){ return lat.toFixed(5) + ',' + lng.toFixed(5); }
+
+  function starIcon(count){
+    var badge = count > 1 ? (
+      '<circle cx="26" cy="9" r="8" fill="#d32f2f" stroke="#fff" stroke-width="1.5"/>' +
+      '<text x="26" y="12.5" font-size="10" font-weight="bold" fill="#fff" text-anchor="middle" font-family="sans-serif">' + (count>99?'99+':count) + '</text>'
+    ) : '';
+    return (
+      '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">' +
+        '<path d="M18 1C9.16 1 2 8.16 2 17c0 12 16 27 16 27s16-15 16-27C34 8.16 26.84 1 18 1z" fill="#FFC107" stroke="#B8860B" stroke-width="1.6"/>' +
+        '<polygon points="18,9 20.6,15.4 27.5,15.8 22.1,20.1 23.9,26.8 18,22.9 12.1,26.8 13.9,20.1 8.5,15.8 15.4,15.4" fill="#fff" stroke="#B8860B" stroke-width="0.4"/>' +
+        badge +
+      '</svg>'
+    );
+  }
+
+  function clearMarkers(){
+    Object.keys(groups).forEach(function(k){
+      if (groups[k].marker) groups[k].marker.setMap(null);
+    });
+    groups = {};
+  }
+
+  function rebuildGroups(){
+    clearMarkers();
+    rows.forEach(function(row, idx){
+      if (row.status !== 'ok' || !row.selected) return;
+      var key = coordKey(row.lat, row.lng);
+      if (!groups[key]) groups[key] = { lat: row.lat, lng: row.lng, rowIndexes: [], marker: null };
+      groups[key].rowIndexes.push(idx);
+    });
+    Object.keys(groups).forEach(function(key){
+      var g = groups[key];
+      var marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(g.lat, g.lng),
+        map: map,
+        icon: {
+          content: starIcon(g.rowIndexes.length),
+          size: new naver.maps.Size(36, 46),
+          anchor: new naver.maps.Point(18, 46)
+        }
+      });
+      g.marker = marker;
+      naver.maps.Event.addListener(marker, 'click', (function(k){
+        return function(){ openGroupInfo(k, null); };
+      })(key));
+    });
+  }
+
+  function openGroupInfo(key, highlightIdx){
+    var g = groups[key];
+    if (!g || !g.marker) return;
+    var html = '<div class="iw"><h4>' + g.rowIndexes.length + '명 / 건</h4>';
+    g.rowIndexes.forEach(function(idx){
+      var row = rows[idx];
+      var title = nameColKey ? row.values[nameColKey] : (row.values[addrColKey] || ('항목 ' + (idx+1)));
+      html += '<div class="person"' + (idx===highlightIdx ? ' style="background:#fff8e1;"' : '') + '>';
+      html += '<table>';
+      headers.forEach(function(h){
+        var val = row.values[h];
+        if (val === '' || val == null) return;
+        html += '<tr><th>' + escapeHtml(h) + '</th><td>' + escapeHtml(val) + '</td></tr>';
+      });
+      html += '</table></div>';
+    });
+    html += '</div>';
+    infowindow.setContent(html);
+    infowindow.open(map, g.marker);
+    map.panTo(g.marker.getPosition());
+  }
+
+  function updateProgress(done, total){
+    el('plotStatus').textContent = "지오코딩 중... (" + done + " / " + total + ")";
+  }
+
+  async function plotAll(onlyFailed){
+    if (!map){ el('plotStatus').textContent = "먼저 지도를 초기화하세요."; el('plotStatus').className="status-msg error"; return; }
+    if (!addrColKey){ el('plotStatus').textContent = "주소 열을 선택하세요."; el('plotStatus').className="status-msg error"; return; }
+
+    el('plotBtn').disabled = true;
+    el('retryBtn').disabled = true;
+    var target = rows.map(function(r,i){ return i; }).filter(function(i){
+      if (!rows[i].selected) return false;
+      return onlyFailed ? rows[i].status === 'fail' : rows[i].status !== 'ok';
+    });
+
+    var total = target.length, done = 0;
+    for (var t=0; t<target.length; t++){
+      var i = target[t];
+      var row = rows[i];
+      var addr = (row.values[addrColKey] || '').trim();
+
+      if (!addr){
+        row.status = 'fail'; row.failReason = '주소 없음';
+      } else {
+        var latKey = headers.find(function(h){ return /^위도$|^lat(itude)?$/i.test(h); });
+        var lngKey = headers.find(function(h){ return /^경도$|^lng|^lon(gitude)?$/i.test(h); });
+        var coord = null;
+        if (latKey && lngKey && row.values[latKey] && row.values[lngKey] &&
+            !isNaN(parseFloat(row.values[latKey])) && !isNaN(parseFloat(row.values[lngKey]))){
+          coord = { lat: parseFloat(row.values[latKey]), lng: parseFloat(row.values[lngKey]) };
+        } else {
+          coord = await geocodeOne(addr);
+          await sleep(120); // 간단한 요청 속도 제한
+        }
+        if (!coord){
+          row.status = 'fail'; row.failReason = '지오코딩 결과 없음 (주소 확인 필요)';
+        } else {
+          row.status = 'ok'; row.lat = coord.lat; row.lng = coord.lng; row.failReason = '';
+        }
+      }
+      done++;
+      updateProgress(done, total);
+      renderEntryList();
+    }
+
+    rebuildGroups();
+
+    var bounds = null;
+    rows.forEach(function(row){
+      if (row.status === 'ok' && row.selected){
+        if (!bounds) bounds = new naver.maps.LatLngBounds(new naver.maps.LatLng(row.lat,row.lng), new naver.maps.LatLng(row.lat,row.lng));
+        else bounds.extend(new naver.maps.LatLng(row.lat, row.lng));
+      }
+    });
+    if (bounds) map.fitBounds(bounds);
+
+    var okCount = rows.filter(function(r){ return r.status==='ok'; }).length;
+    var failCount = rows.filter(function(r){ return r.status==='fail'; }).length;
+    el('plotStatus').textContent = "완료: 성공 " + okCount + "건 / 실패 " + failCount + "건";
+    el('plotStatus').className = failCount>0 ? "status-msg error" : "status-msg ok";
+    el('plotBtn').disabled = false;
+    el('exportBtn').style.display = 'inline-block';
+    renderFailPanel();
+    renderEntryList();
+  }
+
+  el('plotBtn').addEventListener('click', function(){ plotAll(false); });
+  el('retryBtn').addEventListener('click', function(){ plotAll(true); });
+
+  // ---------- sidebar list ----------
+  function renderEntryList(){
+    var listEl = el('entryList');
+    var q = el('searchInput').value.trim().toLowerCase();
+    listEl.innerHTML = '';
+    var shown = 0;
+    rows.forEach(function(row, idx){
+      var haystack = Object.values(row.values).join(' ').toLowerCase();
+      if (q && haystack.indexOf(q) === -1) return;
+      shown++;
+      var title = nameColKey ? (row.values[nameColKey] || '(이름없음)') : (row.values[addrColKey] || ('항목 ' + (idx+1)));
+      var sub = row.values[addrColKey] || '';
+      var div = document.createElement('div');
+      div.className = 'entry' + (row.selected ? '' : ' deselected');
+      div.innerHTML = '<input type="checkbox" class="entryChk" ' + (row.selected ? 'checked' : '') + '><span class="dot ' + row.status + '"></span><span class="title">' + escapeHtml(title) + '</span><br><span class="sub">' + escapeHtml(sub) + (row.status==='fail' ? ' — ' + escapeHtml(row.failReason) : '') + '</span>';
+      var chk = div.querySelector('.entryChk');
+      chk.addEventListener('click', function(ev){ ev.stopPropagation(); });
+      chk.addEventListener('change', function(){
+        row.selected = chk.checked;
+        div.classList.toggle('deselected', !row.selected);
+        updateSelectedCount();
+        if (row.status === 'ok') rebuildGroups();
+      });
+      div.addEventListener('click', function(){
+        if (row.status !== 'ok'){
+          el('plotStatus').textContent = "아직 지도에 표시되지 않은 항목입니다. '지도에 표시' 버튼을 먼저 눌러주세요.";
+          el('plotStatus').className = "status-msg error";
+          return;
+        }
+        if (!row.selected){
+          el('plotStatus').textContent = "선택 해제된 항목입니다. 체크박스를 켠 뒤 다시 시도해 주세요.";
+          el('plotStatus').className = "status-msg error";
+          return;
+        }
+        var key = coordKey(row.lat, row.lng);
+        openGroupInfo(key, idx);
+      });
+      listEl.appendChild(div);
+    });
+    var summaryEl = el('summary');
+    if (rows.length){
+      summaryEl.style.display = 'flex';
+      summaryEl.innerHTML = '전체 <b>' + rows.length + '</b>건 · 표시 중 <b>' + shown + '</b>건';
+    }
+  }
+  el('searchInput').addEventListener('input', renderEntryList);
+
+  // ---------- fail panel ----------
+  function renderFailPanel(){
+    var fails = rows.map(function(r,i){ return {r:r,i:i}; }).filter(function(x){ return x.r.status==='fail'; });
+    var panel = el('failPanel');
+    if (!fails.length){ panel.classList.remove('open'); el('retryBtn').style.display='none'; return; }
+    panel.classList.add('open');
+    el('retryBtn').style.display = 'inline-block';
+    el('retryBtn').disabled = false;
+    el('failCount').textContent = "지오코딩 실패 " + fails.length + "건";
+    var itemsEl = el('failItems');
+    itemsEl.innerHTML = '';
+    fails.forEach(function(x){
+      var d = document.createElement('div');
+      d.className = 'fp-item';
+      d.textContent = (x.r.values[addrColKey] || '(주소 없음)') + ' — ' + x.r.failReason;
+      itemsEl.appendChild(d);
+    });
+  }
+  el('closeFail').addEventListener('click', function(){ el('failPanel').classList.remove('open'); });
+
+  // ---------- export ----------
+  el('exportBtn').addEventListener('click', function(){
+    var cols = headers.slice();
+    if (cols.indexOf('위도') === -1) cols.push('위도');
+    if (cols.indexOf('경도') === -1) cols.push('경도');
+    if (cols.indexOf('상태') === -1) cols.push('상태');
+    var lines = [cols.map(csvEsc).join(',')];
+    rows.forEach(function(row){
+      var line = cols.map(function(c){
+        if (c === '위도') return row.lat != null ? row.lat : '';
+        if (c === '경도') return row.lng != null ? row.lng : '';
+        if (c === '상태') return row.status === 'ok' ? '성공' : (row.status === 'fail' ? '실패: ' + row.failReason : '미처리');
+        return row.values[c] != null ? row.values[c] : '';
+      }).map(csvEsc).join(',');
+      lines.push(line);
+    });
+    var csv = "﻿" + lines.join('\r\n');
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '지오코딩_결과.csv';
+    a.click();
+  });
+  function csvEsc(v){
+    v = String(v == null ? '' : v);
+    if (/[",\n\r]/.test(v)) v = '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  }
+
+})();
+</script>
+</body>
+</html>
